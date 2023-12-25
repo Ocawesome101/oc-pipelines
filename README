@@ -1,0 +1,16 @@
+# Pipelines
+
+Pipelines is a system where virtually all behavior is customizable.  All interactions are defined by pipelines.
+
+Each pipeline has one or more wells (sources), zero or more pipes, and one or more faucets (sinks).  Data should travel through the pipeline in a linear fashion.  It can be thought of as analogous to unix's standard shell pipelines, but more powerful thanks to its capability to pass along arbitrary data types.
+
+An example pipeline definition file:
+
+```
+well: file(/input.txt)
+pipe: processor.lua
+pipe: subsequent.lua
+faucet: file(/output.txt)
+```
+
+Pipelines is intentionally low-overhead.

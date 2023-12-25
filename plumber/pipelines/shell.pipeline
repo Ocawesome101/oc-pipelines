@@ -1,0 +1,4 @@
+#: default shell pipeline
+well: readkey
+pipe: shell
+faucet: screen
