@@ -77,7 +77,7 @@ do
     return self.fs.seek(self.fd, w, o)
   end
 
-  function handle.close()
+  function handle:close()
     return self.fs.close(self.fd)
   end
 
@@ -163,23 +163,24 @@ end
 
 -- multithreading-ish
 local pipelines = {}
-function plumber.startPipeline(name)
+function plumber.loadPipeline(name)
   local new = {stages = {}, signals = {}}
 
   local wells = {}
   local pipes = {}
   local faucets = {}
 
-  local data = readFile("/plumber/pipelines/"..name..".pipeline")
+  local data, err = readFile("/plumber/pipelines/"..name..".pipeline")
+  if not data then return nil, err end
 
   for line in data:gmatch("[^\n]+") do
     local stage, thing = line:match("([^:]+): (.+)")
     if stage == "well" then
-      new.wells[#new.wells+1] = loadWell(thing)
+      wells[#wells+1] = loadWell(thing)
     elseif stage == "pipe" then
-      new.pipes[#new.pipes+1] = loadPipe(thing)
+      pipes[#pipes+1] = loadPipe(thing)
     elseif stage == "faucet" then
-      new.faucets[#new.faucets+1] = loadFaucet(thing)
+      faucets[#faucets+1] = loadFaucet(thing)
     elseif stage ~= "#" then
       log("warning: malformed stage '"..stage.."' in pipeline "..name)
     end
@@ -212,6 +213,15 @@ function plumber.startPipeline(name)
   return new
 end
 
+function plumber.startPipeline(name)
+  local pl, err = plumber.loadPipeline(name)
+  if not pl then
+    log("pipeline loading failed: " .. err)
+  else
+    pipelines[#pipelines+1] = pl
+  end
+end
+
 local _currentPipelineStage
 
 function plumber.tickPipeline(line)
@@ -233,6 +243,7 @@ function plumber.tickPipeline(line)
       if reason ~= "cannot resume dead coroutine" then
         log("warning: pipeline stage '"..line.wells[i].name.."' exited uncleanly")
         line.unclean = true
+      end
     end
   end
   if #line.stages == 0 then
@@ -273,7 +284,7 @@ function plumber.pollInput(id)
     return nil, "pipeline well has no inputs"
   end
   if not inputs[id] then
-    return nil, "invalid pipeline stage input ID: " .. id)
+    return nil, "invalid pipeline stage input ID: " .. id
   end
   if #inputs[id] > 0 then
     return table.remove(inputs[id], 1)
@@ -305,7 +316,7 @@ function plumber.waitInput(id)
     return nil, "pipeline well has no inputs"
   end
   if not inputs[id] then
-    return nil, "invalid pipeline stage input ID: " .. id)
+    return nil, "invalid pipeline stage input ID: " .. id
   end
   while #inputs[id] == 0 do
     coroutine.yield()
@@ -336,7 +347,7 @@ end
 function plumber.pollSignal()
   local signals = _currentPipelineStage.signals
   if #signals > 0 then
-    return table.remove(signals[1])
+    return table.unpack(table.remove(signals[1]))
   end
 end
 
@@ -346,7 +357,7 @@ function plumber.waitSignal()
   while #signals == 0 do
     coroutine.yield()
   end
-  return table.remove(signals[1])
+  return table.unpack(table.remove(signals[1]))
 end
 
 -- write one or more values to a single output
@@ -356,7 +367,7 @@ function plumber.writeSingle(id, ...)
     return nil, "pipeline well has no outputs"
   end
   if not outputs[id] then
-    return nil, "bad pipeline stage output ID: " .. id)
+    return nil, "bad pipeline stage output ID: " .. id
   end
 
   local args = table.pack(...)
@@ -385,8 +396,31 @@ function plumber.write(...)
   return true
 end
 
+computer.pushSignal("startup")
+plumber.startPipeline("shell")
+
+local done = false
 while true do
-  computer.pullSignal()
+  local signal = table.pack(computer.pullSignal())
+  local ioffset = 0
   for i=1, #pipelines do
+    i = i + ioffset
+    if pipelines[i] then
+      if signal.n > 0 then
+        pipelines[i].signals[#pipelines[i].signals+1] = signal
+      end
+      plumber.tickPipeline(pipelines[i])
+      if pipelines[i].complete then
+        table.remove(pipelines, i)
+        ioffset = ioffset + 1
+      end
+    end
+  end
+  if #pipelines == 0 and not done then
+    done = true
+    computer.beep(880)
+    computer.beep(440)
+    computer.beep(220)
+    log("All pipelines completed!")
   end
 end
