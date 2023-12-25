@@ -2,15 +2,23 @@
 
 Pipelines is a system where virtually all behavior is customizable.  All interactions are defined by pipelines.
 
-Each pipeline has one or more wells (sources), zero or more pipes, and one or more faucets (sinks).  Data should travel through the pipeline in a linear fashion.  It can be thought of as analogous to unix's standard shell pipelines, but more powerful thanks to its capability to pass along arbitrary data types.
+Each pipeline has one or more wells (sources), zero or more pipes, and one or more faucets (sinks).  It can be thought of as analogous to unix's standard shell pipelines, but perhaps more powerful thanks to its capability to pass along arbitrary data types and nonlinear capabilities.
 
 An example pipeline definition file:
 
 ```
-well: file(/input.txt)
+well: file(/input.txt) output(tofaucet)
 pipe: processor.lua
 pipe: subsequent.lua
-faucet: file(/output.txt)
+faucet: file(/output.txt) input(tofaucet)
 ```
 
-Pipelines is intentionally low-overhead.
+line format:
+
+  type: name(arguments) [input(id)] [output(id)]
+
+The input and output directives can be repeated, and allow constructing alternate non-linear pipelines.
+
+The Pipelines system is intentionally low-overhead.  Very little extra boilerplate is provided.
+
+Stages are stored in `/plumber/plumbing`.  Pipelines are stored in `/plumber/pipelines`.

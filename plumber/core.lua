@@ -105,7 +105,23 @@ end
 -- global 'plumber' api
 _G.plumber = {}
 
-local global_states = {}
+function plumber.getGraphicsOutput()
+  return bootgpu
+end
+
+function plumber.setGraphicsOutput(gpu)
+  if gpu.type == "gpu" then
+    bootgpu = gpu
+  elseif component.type(tostring(gpu)) == "gpu" then
+    bootgpu = component.proxy(gpu)
+  end
+end
+
+function plumber.setLogOutput(func)
+  log = func
+end
+
+local global_state = {}
 
 local function readFile(f)
   local hand, err = fs.open(f)
@@ -140,8 +156,8 @@ local function loadStage(name, input, output)
       return {
         coro = coroutine.create(func),
         name = name,
-        inputBuffer = input and {},
-        outputBuffer = output and {}
+        inputs = input and {{}},
+        outputs = output and {{}}
       }
     end
   end
@@ -150,7 +166,7 @@ local function loadStage(name, input, output)
 end
 
 local function loadWell(name)
-  return loadStage(name, false, true)
+  return loadStage(name, nil, true)
 end
 
 local function loadPipe(name)
@@ -158,55 +174,94 @@ local function loadPipe(name)
 end
 
 local function loadFaucet(name)
-  return loadStage(name, true, false)
+  return loadStage(name, true)
 end
 
 -- multithreading-ish
 local pipelines = {}
+
+local function splitArguments(a)
+  local r = {}
+  for w in a:gmatch("[^,]+") do
+    r[#r+1] = w
+  end
+  return r
+end
+
+local function processAdditionalIO(addition, aux, pipe)
+  if not addition then return end
+  for io, name in addition:gmatch(" ?([a-z]+)(%b()) ?") do
+    name=name:sub(2,-2)
+    aux[name] = aux[name] or { type = name }
+    if io == "input" then
+      pipe.inputs[#pipe.inputs+1] = aux[name]
+    elseif io == "output" then
+      pipe.outputs[#pipe.outputs+1] = aux[name]
+    end
+  end
+end
+
 function plumber.loadPipeline(name)
   local new = {stages = {}, signals = {}}
 
   local wells = {}
   local pipes = {}
   local faucets = {}
+  local aux_pipes = {}
 
   local data, err = readFile("/plumber/pipelines/"..name..".pipeline")
   if not data then return nil, err end
 
   for line in data:gmatch("[^\n]+") do
-    local stage, thing = line:match("([^:]+): (.+)")
+    local stage, thing, extra = line:match("([^:]+): ([a-zA-Z_]+)(.*)")
+    local args, additional
+    if extra:sub(1,1) == "(" then
+      args, additional = extra:match("(%b()) ?(.*)")
+    else
+      args, additional = "()", extra
+    end
+    args = splitArguments(args:sub(2,-2))
+    local directive = {}
     if stage == "well" then
-      wells[#wells+1] = loadWell(thing)
+      directive = loadWell(thing, args)
+      wells[#wells+1] = directive
     elseif stage == "pipe" then
-      pipes[#pipes+1] = loadPipe(thing)
+      directive = loadPipe(thing, args)
+      pipes[#pipes+1] = directive
     elseif stage == "faucet" then
-      faucets[#faucets+1] = loadFaucet(thing)
-    elseif stage ~= "#" then
+      directive = loadFaucet(thing, args)
+      faucets[#faucets+1] = directive
+    elseif stage and stage ~= "#" then
       log("warning: malformed stage '"..stage.."' in pipeline "..name)
+    end
+    if directive then
+      processAdditionalIO(additional, aux_pipes, directive)
     end
   end
 
   -- hopefully this system should allow more complex pipelines in the future
   -- once i have a better system for defining them
   for i=1, #wells do
-    wells[i].outputBuffer[1] = {type = wells[i].name}
+    wells[i].outputs[1] = {type = wells[i].name}
     new.stages[#new.stages+1] = wells[i]
   end
 
   for i=1, #pipes do
-    pipes[i].outputBuffer[1] = {type = pipes[i].name}
+    pipes[i].outputs[1] = {type = pipes[i].name}
     new.stages[#new.stages+1] = pipes[i]
     if i == 1 then
       for i=1, #wells do
-        pipes[i].inputBuffer[i] = wells[i].outputBuffer[1]
+        pipes[i].inputs[i] = wells[i].outputs[1]
       end
     else
-      pipes[i].inputBuffer[1] = pipes[i-1].outputBuffer[1]
+      pipes[i].inputs[1] = pipes[i-1].outputs[1]
     end
   end
 
   for i=1, #faucets do
-    faucets[i].inputBuffer[1] = pipes[#pipes].outputBuffer[1]
+    if pipes[#pipes] then
+      faucets[i].inputs[1] = pipes[#pipes].outputs[1]
+    end
     new.stages[#new.stages+1] = faucets[i]
   end
 
@@ -222,33 +277,45 @@ function plumber.startPipeline(name)
   end
 end
 
-local _currentPipelineStage
+local _currentPipeline, _currentPipelineStage
 
 function plumber.tickPipeline(line)
+  _currentPipeline = line
+  local lineTimeout = math.huge
   for i=1, #line.stages do
-    _currentPipelineStage = line.stages[i]
-    local ok, reason = coroutine.resume(line.stages[i].coro)
-    if not ok then
-      local inp = _currentPipelineStage.inputs
-      local oup = _currentPipelineStage.outputs
+    if line.stages[i] then
+      _currentPipelineStage = line.stages[i]
+      local ok, reason = coroutine.resume(line.stages[i].coro)
+      if not ok then
+        local inp = _currentPipelineStage.inputs
+        local oup = _currentPipelineStage.outputs
 
-      for i=1, #inp do
-        inp[i].inactive = true
-      end
-      for i=1, #oup do
-        oup[i].inactive = true
-      end
+        if inp then
+          for i=1, #inp do
+            inp[i].inactive = true
+          end
+        end
+        if oup then
+          for i=1, #oup do
+            oup[i].inactive = true
+          end
+        end
 
-      table.remove(line.stages, i)
-      if reason ~= "cannot resume dead coroutine" then
-        log("warning: pipeline stage '"..line.wells[i].name.."' exited uncleanly")
-        line.unclean = true
+        if reason ~= "cannot resume dead coroutine" then
+          log("warning: pipeline stage '"..line.stages[i].name.."' ("..i..") exited uncleanly")
+          log(tostring(reason))
+          line.unclean = true
+        end
+        table.remove(line.stages, i)
       end
+    elseif type(reason) == "number" then
+      lineTimeout = math.max(0, math.min(lineTimeout, reason))
     end
   end
   if #line.stages == 0 then
     line.complete = true
   end
+  return lineTimeout
 end
 
 -- retrieve a list of input IDs and their type
@@ -268,7 +335,7 @@ function plumber.getOutputs()
   if not outputs then return nil end
   local ret = {}
   for i=1, #outputs do
-    ret[i] = {id = i, type = outputs[i].type, active = not inputs[i].inactive}
+    ret[i] = {id = i, type = outputs[i].type, active = not outputs[i].inactive}
   end
   return ret
 end
@@ -279,7 +346,7 @@ end
 -- returns one item from that specific input, if present
 -- otherwise returns nil
 function plumber.pollInput(id)
-  local inputs = _currentPipelineStage.inputBuffer
+  local inputs = _currentPipelineStage.inputs
   if not inputs then
     return nil, "pipeline well has no inputs"
   end
@@ -294,50 +361,60 @@ end
 -- returns a table containing the IDs of inputs that have data available
 -- for reading
 -- these must then individually be read with pollInput() or waitInput()
+-- returns nil when there are no active inputs left
 function plumber.pollInputs()
-  local inputs = _currentPipelineStage.inputBuffer
+  local inputs = _currentPipelineStage.inputs
   if not inputs then
     return nil, "pipeline well has no inputs"
   end
   local ret = {}
+  local active = false
   for i=1, #inputs do
     if #inputs[i] > 0 then
       ret[#ret+1] = i
     end
+    if not inputs[i].inactive then active = true end
   end
+  if not active then return nil end
   return ret
 end
 
 -- wait until an input value is available from a given ID
 -- returns the same as pollInput()
+-- returns nil if the input is no longer active
 function plumber.waitInput(id)
-  local inputs = _currentPipelineStage.inputBuffer
+  local inputs = _currentPipelineStage.inputs
   if not inputs then
     return nil, "pipeline well has no inputs"
   end
   if not inputs[id] then
     return nil, "invalid pipeline stage input ID: " .. id
   end
-  while #inputs[id] == 0 do
+  while #inputs[id] == 0 and not inputs[id].inactive do
     coroutine.yield()
   end
+  return table.remove(inputs[id], 1)
 end
 
 -- wait until an input value is available from at least one input
 -- returns the same as pollInputs()
+-- returns nil when there are no active inputs left
 function plumber.waitInputs()
-  local inputs = _currentPipelineStage.inputBuffer
+  local inputs = _currentPipelineStage.inputs
   if not inputs then
     return nil, "pipeline well has no inputs"
   end
   local ret = {}
   while true do
+    local active = false
     for i=1, #inputs do
+      active = active or not inputs[i].inactive
       if #inputs[i] > 0 then
         ret[#ret+1] = i
       end
     end
     if #ret > 0 then break end
+    if not active then return nil end
     coroutine.yield()
   end
   return ret
@@ -345,7 +422,7 @@ end
 
 -- similar to the above, but for OpenComputers signals
 function plumber.pollSignal()
-  local signals = _currentPipelineStage.signals
+  local signals = _currentPipeline.signals
   if #signals > 0 then
     return table.unpack(table.remove(signals[1]))
   end
@@ -353,16 +430,16 @@ end
 
 -- XXX unlike the other wait() functions, this one returns a value
 function plumber.waitSignal()
-  local signals = _currentPipelineStage.signals
+  local signals = _currentPipeline.signals
   while #signals == 0 do
     coroutine.yield()
   end
-  return table.unpack(table.remove(signals[1]))
+  return table.unpack(table.remove(signals, 1))
 end
 
 -- write one or more values to a single output
 function plumber.writeSingle(id, ...)
-  local outputs = _currentPipelineStage.outputBuffer 
+  local outputs = _currentPipelineStage.outputs 
   if not outputs then
     return nil, "pipeline well has no outputs"
   end
@@ -380,7 +457,7 @@ end
 
 -- write one or more values to every output
 function plumber.write(...)
-  local outputs = _currentPipelineStage.outputBuffer 
+  local outputs = _currentPipelineStage.outputs 
   if not outputs then
     return nil, "pipeline well has no outputs"
   end
@@ -396,20 +473,35 @@ function plumber.write(...)
   return true
 end
 
+function plumber.readGlobalState(k)
+  return global_state[k]
+end
+
+function plumber.writeGlobalState(k, v)
+  global_state[k] = v
+  return global_state[k]
+end
+
 computer.pushSignal("startup")
 plumber.startPipeline("shell")
 
 local done = false
+local nextYieldTimeout = math.huge
 while true do
-  local signal = table.pack(computer.pullSignal())
+  local signal = table.pack(computer.pullSignal(nextYieldTimeout))
+  local nextYieldTimeout = math.huge
   local ioffset = 0
   for i=1, #pipelines do
     i = i + ioffset
     if pipelines[i] then
       if signal.n > 0 then
         pipelines[i].signals[#pipelines[i].signals+1] = signal
+        if #pipelines[i].signals > 256 then
+          table.remove(pipelines[i].signals, 1)
+        end
       end
-      plumber.tickPipeline(pipelines[i])
+      local timeout = plumber.tickPipeline(pipelines[i])
+      nextYieldTimeout = math.min(timeout, nextYieldTimeout)
       if pipelines[i].complete then
         table.remove(pipelines, i)
         ioffset = ioffset + 1
