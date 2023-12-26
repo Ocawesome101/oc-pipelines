@@ -1,4 +1,10 @@
--- cannot run as a well
+-- name: screen
+-- args: cursorcontrol
+-- inputs: any
+-- outputs: none
+
+local controlcblink = (...) ~= "nocursor"
+
 if not plumber.getInputs() then
   return
 end
@@ -24,21 +30,23 @@ if type(gpu) == "string" or not gpu then return end
 
 local on = false
 local function setcblink(yes)
-  on = not not plumber.readGlobalState("cursor_B")
-  if cx < 1 or cy < 1 or cx > w or cy > h then
-    return
+  if controlcblink then
+    on = not not plumber.readGlobalState("cursor_B")
+    if cx < 1 or cy < 1 or cx > w or cy > h then
+      return
+    end
+    local of, ob = gpu.getForeground(), gpu.getBackground()
+    if (yes and not on) or (on and not yes) then
+      on = not on
+      local c, f, b = gpu.get(cx, cy)
+      gpu.setForeground(b)
+      gpu.setBackground(f)
+      gpu.set(cx, cy, c)
+      gpu.setForeground(of)
+      gpu.setBackground(ob)
+    end
+    plumber.writeGlobalState("cursor_B", on)
   end
-  local of, ob = gpu.getForeground(), gpu.getBackground()
-  if (yes and not on) or (on and not yes) then
-    on = not on
-    local c, f, b = gpu.get(cx, cy)
-    gpu.setForeground(b)
-    gpu.setBackground(f)
-    gpu.set(cx, cy, c)
-    gpu.setForeground(of)
-    gpu.setBackground(ob)
-  end
-  plumber.writeGlobalState("cursor_B", on)
 end
 
 w, h = gpu.getResolution()

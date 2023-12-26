@@ -286,8 +286,8 @@ function plumber.loadPipeline(name, varargs)
   return new
 end
 
-function plumber.startPipeline(name)
-  local pl, err = plumber.loadPipeline(name)
+function plumber.startPipeline(name, args)
+  local pl, err = plumber.loadPipeline(name, args)
   if not pl then
     log("pipeline loading failed: " .. err)
     return false

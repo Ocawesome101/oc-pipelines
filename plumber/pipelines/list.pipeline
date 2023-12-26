@@ -1,2 +1,3 @@
 well: dir(...)
-faucet: screen
+pipe: lines
+faucet: screen(nocursor)

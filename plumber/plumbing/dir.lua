@@ -1,8 +1,7 @@
 -- name: dir
 -- args: path
 -- inputs: none
--- outputs: 1
---  1: data
+-- outputs: any
 
 local dir = ...
 if not dir then error("dir: no path provided", 0) end

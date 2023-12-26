@@ -1,3 +1,8 @@
+-- name: shell
+-- args: interactive
+-- inputs: 1
+-- outputs: any
+
 local interactive = ...
 if interactive == "interactive" then
   interactive = true
@@ -44,6 +49,7 @@ function commands.pipeline(waitOrName, nameOrArgs, args)
     name = waitOrName
     args = nameOrArgs
   end
+
   local id, err = plumber.startPipeline(name, args)
   if not id then return end
   if wait then
@@ -72,6 +78,9 @@ end
 
 local function processCommand(c)
   local words = split(c)
+  if not commands[words[1]] then
+    words = split("pipe wait " .. c)
+  end
   if commands[words[1]] then
     commands[words[1]](table.unpack(words, 2))
   elseif interactive then

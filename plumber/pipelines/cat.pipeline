@@ -1,3 +1,2 @@
-#: well: file
 well: file(...)
-faucet: screen
+faucet: screen(nocursor)
