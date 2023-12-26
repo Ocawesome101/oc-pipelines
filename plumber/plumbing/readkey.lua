@@ -50,7 +50,7 @@ while true do
       plumber.writeSingle(screenOutput, string.char(signal[3]))
     elseif signal[3] == KEY_ENTER then
       plumber.writeSingle(screenOutput, "\n")
-      coroutine.yield(0)
+      coroutine.yield(0) -- io sync
       for i=1, #outputs do
         if i ~= screenOutput then
           plumber.writeSingle(i, line)
@@ -61,8 +61,9 @@ while true do
       line = line:sub(1, -2)
       movec(-1)
       plumber.writeSingle(screenOutput, " ")
-      coroutine.yield(0)
+      coroutine.yield(0) -- io sync
       movec(-1)
+      plumber.writeSingle(screenOutput, "")
     end
   end
 end

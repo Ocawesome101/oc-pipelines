@@ -66,6 +66,7 @@ do
       local chunk = self.fs.read(self.fd, q - #buf)
       buf = buf .. (chunk or "")
     until #buf == q or not chunk
+    if #buf == 0 then return nil end
     return buf
   end
 
@@ -141,7 +142,7 @@ function _G.loadfile(file, mode, env)
   return load(data, "="..file, mode, env)
 end
 
-local function loadStage(name, input, output)
+local function loadStage(name, args, input, output)
   local stage = {}
   for dir in search:gmatch("[^;]+") do
     local try = dir:gsub("%?", name)
@@ -154,7 +155,9 @@ local function loadStage(name, input, output)
         return nil
       end
       return {
-        coro = coroutine.create(func),
+        coro = coroutine.create(function()
+          return func(table.unpack(args))
+        end),
         name = name,
         inputs = input and {{}},
         outputs = output and {{}}
@@ -165,16 +168,16 @@ local function loadStage(name, input, output)
   log("the pipeline may not function correctly")
 end
 
-local function loadWell(name)
-  return loadStage(name, nil, true)
+local function loadWell(name, args)
+  return loadStage(name, args, nil, true)
 end
 
-local function loadPipe(name)
-  return loadStage(name, true, true)
+local function loadPipe(name, args)
+  return loadStage(name, args, true, true)
 end
 
-local function loadFaucet(name)
-  return loadStage(name, true)
+local function loadFaucet(name, args)
+  return loadStage(name, args, true)
 end
 
 -- multithreading-ish
@@ -272,9 +275,10 @@ function plumber.startPipeline(name)
   local pl, err = plumber.loadPipeline(name)
   if not pl then
     log("pipeline loading failed: " .. err)
-  else
-    pipelines[#pipelines+1] = pl
+    return false
   end
+  pipelines[#pipelines+1] = pl
+  return true
 end
 
 local _currentPipeline, _currentPipelineStage
@@ -382,7 +386,7 @@ end
 -- wait until an input value is available from a given ID
 -- returns the same as pollInput()
 -- returns nil if the input is no longer active
-function plumber.waitInput(id)
+function plumber.waitInput(id, timeout)
   local inputs = _currentPipelineStage.inputs
   if not inputs then
     return nil, "pipeline well has no inputs"
@@ -390,33 +394,52 @@ function plumber.waitInput(id)
   if not inputs[id] then
     return nil, "invalid pipeline stage input ID: " .. id
   end
-  while #inputs[id] == 0 and not inputs[id].inactive do
-    coroutine.yield()
+
+  timeout = timeout or math.huge
+  local time = computer.uptime() + timeout
+
+  while #inputs[id] == 0 and not inputs[id].inactive and not timedOut do
+    coroutine.yield(timeout)
+    if time - computer.uptime() <= 0 then
+      break
+    end
   end
+
   return table.remove(inputs[id], 1)
 end
 
 -- wait until an input value is available from at least one input
 -- returns the same as pollInputs()
 -- returns nil when there are no active inputs left
-function plumber.waitInputs()
+function plumber.waitInputs(timeout)
   local inputs = _currentPipelineStage.inputs
   if not inputs then
     return nil, "pipeline well has no inputs"
   end
   local ret = {}
+
+  timeout = timeout or math.huge
+  local time = computer.uptime() + timeout
+
   while true do
     local active = false
+
     for i=1, #inputs do
       active = active or not inputs[i].inactive
       if #inputs[i] > 0 then
         ret[#ret+1] = i
       end
     end
+
     if #ret > 0 then break end
     if not active then return nil end
-    coroutine.yield()
+
+    coroutine.yield(timeout)
+    if time - computer.uptime() <= 0 then
+      break
+    end
   end
+
   return ret
 end
 
@@ -481,6 +504,12 @@ function plumber.writeGlobalState(k, v)
   global_state[k] = v
   return global_state[k]
 end
+
+
+function plumber.completeCurrentPipeline()
+  _currentPipeline.complete = true
+end
+
 
 computer.pushSignal("startup")
 plumber.startPipeline("shell")
