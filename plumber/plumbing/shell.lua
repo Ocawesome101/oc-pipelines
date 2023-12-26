@@ -33,8 +33,24 @@ Commands:
 ]=])
 end
 
-function commands.pipeline(name)
-  plumber.startPipeline(name)
+function commands.pipeline(waitOrName, nameOrArgs, args)
+  local wait = false
+  local name
+  if waitOrName == "wait" or waitOrName == "-" then
+    wait = waitOrName == "wait"
+    name = nameOrArgs
+    
+  else
+    name = waitOrName
+    args = nameOrArgs
+  end
+  local id, err = plumber.startPipeline(name, args)
+  if not id then return end
+  if wait then
+    plumber.waitForPipeline(id)
+  elseif interactive then
+    plumber.write("started as id: " .. id)
+  end
 end
 
 commands.start, commands.pipe = commands.pipeline, commands.pipeline

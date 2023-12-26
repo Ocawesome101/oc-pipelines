@@ -1,4 +1,3 @@
 #: well: file
-well: file(/plumber/pipelines/shell.pipeline)
-pipe: dummy
+well: file(...)
 faucet: screen

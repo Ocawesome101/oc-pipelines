@@ -5,7 +5,7 @@ local function checkInactive()
 end
 
 while true do
-  if checkInactive() then break end
-  coroutine.yield(0)
-  plumber.write(plumber.waitInput(1))
+  local result = plumber.waitInput(1)
+  plumber.write(result)
+  if not checkInactive() and not result then break end
 end

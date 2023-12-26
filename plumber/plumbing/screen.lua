@@ -73,9 +73,8 @@ if (...) ~= "nolog" then
 end
 
 readcpos()
-setcblink(true)
 while true do
-  local inputs = plumber.waitInputs()
+  local inputs = plumber.waitInputs(1)
   if not inputs then -- no longer active!
     break
   end

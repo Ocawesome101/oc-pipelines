@@ -1,10 +1,11 @@
--- name: file 
+-- name: file
+-- args: path
 -- inputs: none
 -- outputs: 1
 --  1: data
 
 local file, chunkSize = ...
-if not file then error("no file provided") end
+if not file then error("file: no file provided", 0) end
 
 chunkSize = tonumber(chunkSize) or math.huge
 
