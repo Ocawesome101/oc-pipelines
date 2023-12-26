@@ -487,7 +487,7 @@ end
 function plumber.pollSignal()
   local signals = _currentPipeline.signals
   if #signals > 0 then
-    return table.unpack(table.remove(signals[1]))
+    return table.unpack(table.remove(signals, 1))
   end
 end
 

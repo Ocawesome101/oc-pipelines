@@ -29,12 +29,17 @@ Basic command syntax:
   verb [arguments [...]]
 
 Commands:
-  start|pipe|pipeline NAME
+  start|pipe|pipeline [wait] NAME
     Begin executing a pipeline.
+    If [wait], wait for completion.
   pw [s|r]
     Shut down or restart the computer.
+  stat
+    Print some info.
   exit
     Exit an interactive shell.
+
+Unknown commands default to 'pipe wait COMMAND'.
 ]=])
 end
 
@@ -74,6 +79,14 @@ end
 local shouldExit = false
 function commands.exit()
   shouldExit = true
+end
+
+function commands.stat()
+  local total = computer.totalMemory()
+  local free = computer.freeMemory()
+  local used = total - free
+  plumber.write("Memory use: " .. (used//1024).."/"..(total//1024).."KB\n")
+  plumber.write("Uptime: " .. computer.uptime() .. "\n")
 end
 
 local function processCommand(c)
