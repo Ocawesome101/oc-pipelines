@@ -1,2 +1,2 @@
-well: file(...)
-faucet: screen(nocursor)
+: file(...) output(screen)
+: screen(nocursor) input(screen)

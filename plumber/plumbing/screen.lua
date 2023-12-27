@@ -46,6 +46,8 @@ local function setcblink(yes)
       gpu.setBackground(ob)
     end
     plumber.writeGlobalState("cursor_B", on)
+  else
+    plumber.writeGlobalState("cursor_B", false)
   end
 end
 
@@ -80,8 +82,14 @@ if (...) ~= "nolog" then
   end)
 end
 
+local function checkActive()
+  for _, input in pairs(plumber.getInputs()) do
+    if not input.inactive then return true end
+  end
+end
+
 readcpos()
-while true do
+while checkActive() do
   local inputs = plumber.waitInputs(1)
   if not inputs then -- no longer active!
     break

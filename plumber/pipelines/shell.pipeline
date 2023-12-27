@@ -1,4 +1,4 @@
 #: default shell pipeline
-well: readkey output(screen)
-pipe: shell(interactive)
-faucet: screen input(screen)
+: readline output(screen) output(shell)
+: shell(interactive) input(shell) output(screen)
+: screen input(screen)

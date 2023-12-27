@@ -1,3 +1,3 @@
-well: dir(...)
-pipe: lines
-faucet: screen(nocursor)
+: dir(...) output(lines)
+: lines input(lines) output(screen)
+: screen(nocursor) input(screen)

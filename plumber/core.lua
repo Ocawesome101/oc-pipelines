@@ -159,8 +159,8 @@ local function loadStage(name, args, input, output)
           return func(table.unpack(args))
         end),
         name = name,
-        inputs = input and {{}},
-        outputs = output and {{}}
+        inputs = input and {},
+        outputs = output and {}
       }
     end
   end
@@ -218,24 +218,27 @@ function plumber.loadPipeline(name, varargs)
 
   varargs = splitArguments(varargs or "")
 
-  local wells = {}
-  local pipes = {}
-  local faucets = {}
+  --local wells = {}
+  --local pipes = {}
+  --local faucets = {}
+  local stages = {}
   local aux_pipes = {}
 
   local data, err = readFile("/plumber/pipelines/"..name..".pipeline")
   if not data then return nil, err end
 
   for line in data:gmatch("[^\n]+") do
-    local stage, thing, extra = line:match("([^:]+): ([a-zA-Z_]+)(.*)")
+    local stage, thing, extra = line:match("([^:]*): ([a-zA-Z_]+)(.*)")
     local args, additional
-    if extra:sub(1,1) == "(" then
-      args, additional = extra:match("(%b()) ?(.*)")
-    else
-      args, additional = "()", extra
-    end
-    args = splitArguments(args:sub(2,-2), varargs)
-    local directive = {}
+    if stage ~= "#" then
+      if extra:sub(1,1) == "(" then
+        args, additional = extra:match("(%b()) ?(.*)")
+      else
+        args, additional = "()", extra
+      end
+      args = splitArguments(args:sub(2,-2), varargs)
+      local directive = loadStage(thing, args, true, true)
+    --[[
     if stage == "well" then
       directive = loadWell(thing, args)
       wells[#wells+1] = directive
@@ -247,14 +250,15 @@ function plumber.loadPipeline(name, varargs)
       faucets[#faucets+1] = directive
     elseif stage and stage ~= "#" then
       log("warning: malformed stage '"..stage.."' in pipeline "..name)
-    end
-    if directive then
-      processAdditionalIO(additional, aux_pipes, directive)
+    end]]
+      stages[#stages+1] = directive
+      if directive then
+        processAdditionalIO(additional, aux_pipes, directive)
+      end
     end
   end
 
-  -- hopefully this system should allow more complex pipelines in the future
-  -- once i have a better system for defining them
+  --[[
   for i=1, #wells do
     wells[i].outputs[1] = {type = wells[i].name}
     new.stages[#new.stages+1] = wells[i]
@@ -264,8 +268,8 @@ function plumber.loadPipeline(name, varargs)
     pipes[i].outputs[1] = {type = pipes[i].name}
     new.stages[#new.stages+1] = pipes[i]
     if i == 1 then
-      for i=1, #wells do
-        pipes[i].inputs[i] = wells[i].outputs[1]
+      for w=1, #wells do
+        pipes[i].inputs[w] = wells[w].outputs[1]
       end
     else
       pipes[i].inputs[1] = pipes[i-1].outputs[1]
@@ -276,11 +280,19 @@ function plumber.loadPipeline(name, varargs)
     if pipes[#pipes] then
       faucets[i].inputs[1] = pipes[#pipes].outputs[1]
     elseif wells[#wells] then
-      faucets[i].inputs[1] = wells[#wells].outputs[1]
+      local final = faucets[i].inputs[#faucets[i].inputs]
+      for w=1, #wells do
+        faucets[i].inputs[w] = wells[w].outputs[1]
+        faucets[i].inputs[w+1] = final
+      end
     else
       log("warning: no valid inputs for faucet: " .. faucets[i].name)
     end
     new.stages[#new.stages+1] = faucets[i]
+  end]]
+
+  for i=1, #stages do
+    new.stages[i] = stages[i]
   end
 
   return new

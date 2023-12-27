@@ -1,4 +1,7 @@
--- A readline
+-- name: readline
+-- args: none
+-- inputs: none
+-- outputs: any, :screen
 
 -- find screen output, if there is one
 local outputs = plumber.getOutputs()
@@ -13,11 +16,10 @@ end
 
 local line = ""
 
-local function checkInactive()
+local function checkActive()
   for i, output in pairs(plumber.getOutputs()) do
-    if output.active then return false end
+    if output.active then return true end
   end
-  return true
 end
 
 local KEY_LEFT = 203
@@ -41,15 +43,20 @@ local function movec(xd)
   setc(cx, cy)
 end
 
-while true do
-  if checkInactive() then break end
+-- ensure only one readline does things with the screen
+local rlc = plumber.readGlobalState("readlineCount") or 0
+plumber.writeGlobalState("readlineCount", rlc + 1)
+
+while checkActive() do
   local signal = table.pack(plumber.waitSignal())
   if signal[1] == "key_down" then
     if signal[3] > 31 and signal[3] < 127 then
       line = line .. string.char(signal[3])
-      plumber.writeSingle(screenOutput, string.char(signal[3]))
+      if rlc == 0 then
+        plumber.writeSingle(screenOutput, string.char(signal[3]))
+      end
     elseif signal[3] == KEY_ENTER then
-      plumber.writeSingle(screenOutput, "\n")
+      if rlc == 0 then plumber.writeSingle(screenOutput, "\n") end
       coroutine.yield(0) -- io sync
       for i=1, #outputs do
         if i ~= screenOutput then
@@ -59,11 +66,16 @@ while true do
       line = ""
     elseif signal[3] == KEY_BACKSPACE and #line > 0 then
       line = line:sub(1, -2)
-      movec(-1)
-      plumber.writeSingle(screenOutput, " ")
-      coroutine.yield(0) -- io sync
-      movec(-1)
-      plumber.writeSingle(screenOutput, "")
+      if rlc == 0 then
+        movec(-1)
+        plumber.writeSingle(screenOutput, " ")
+        coroutine.yield(0) -- io sync
+        movec(-1)
+        plumber.writeSingle(screenOutput, "")
+      end
     end
   end
 end
+
+plumber.writeGlobalState("readlineCount",
+  plumber.readGlobalState("readlineCount") - 1)

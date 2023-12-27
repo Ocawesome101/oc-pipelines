@@ -3,12 +3,7 @@
 -- inputs: 1
 -- outputs: any
 
-local interactive = ...
-if interactive == "interactive" then
-  interactive = true
-else
-  interactive = false
-end
+local interactive = (...) == "interactive"
 
 local prompt = "Y> "
 
@@ -59,6 +54,8 @@ function commands.pipeline(waitOrName, nameOrArgs, args)
   if not id then return end
   if wait then
     plumber.waitForPipeline(id)
+    -- flush readkey queue
+    repeat until not plumber.pollInput(1)
   elseif interactive then
     plumber.write("started as id: " .. id)
   end
