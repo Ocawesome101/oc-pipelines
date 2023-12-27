@@ -46,10 +46,10 @@ Echoes its first input connection to any output connections.
 Like `dir`, but outputs the contents of a file.
 
 #### `lines`
-Appends a newline to all input messages it receives, and outputs the result.
+Splits each input message it receives into individual lines, and outputs the result.
 
-#### `readkey`
-Reads text input from the user.  Requires a `screen` connection like done in the `shell` pipeline shown above.
+#### `readline`
+Reads text input from the user.  Requires a `screen` connection as shown in the `shell` pipeline above.
 
 #### `screen`
 Manages text output on a screen.  Multiple concurrent instances should behave correctly provided only one of them manages cursor blink (i.e. all but one are given the `nocursor` argument).
