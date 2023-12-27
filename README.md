@@ -2,7 +2,7 @@
 
 Pipelines is a system where virtually all behavior is customizable.  All interactions are defined by pipelines, stored as `.pipeline` files in `/plumber/pipelines`.
 
-Each pipeline has one or more wells (sources), zero or more pipes, and one or more faucets (sinks).  A pipeline can be thought of as analogous to unix's standard shell pipelines, but perhaps more powerful thanks to its extra capabilities.
+Each pipeline has one or more *pipes*.  A pipeline can be thought of as analogous to unix's standard shell pipelines, but perhaps more powerful thanks to its extra capabilities.
 
 The general format for each line of a `.pipeline` file is as follows: `type: name(arguments) input(extraInputName) output(extraOutputName)`.
 
