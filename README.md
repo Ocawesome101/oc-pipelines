@@ -45,6 +45,11 @@ Echoes its first input connection to any output connections.
 #### `file`
 Like `dir`, but outputs the contents of a file.
 
+#### `inetget`
+Has two modes of operation:
+1) Reads a list of URLs from its inputs and processes them in order.  Each data block is preceded by a `{"url", number, string, table}` and succeeded by a `{"done"}`.
+2) Reads data from one single URL, provided as an argument; the output of this mode has no additional metadata and is only the resulting text content.
+
 #### `lines`
 Splits each input message it receives into individual lines, and outputs the result.
 
@@ -72,6 +77,9 @@ Set the GPU used for text output.  Provided argument must be either a full compo
 
 #### `setLogOutput(function)`
 Sets a function to be called when the system needs to log an event.  Its argument should be a single string.
+
+#### `loadLibrary(string): any`
+Loads a library from `/libraries` or `/plumber/libraries`.
 
 #### `loadPipeline(string[, string]): table`
 Loads a given pipeline from `/plumber/pipelines`.  Takes a pipeline name and optionally a comma-separated list of varargs.

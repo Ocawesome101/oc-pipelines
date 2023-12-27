@@ -132,7 +132,9 @@ local function readFile(f)
   return data
 end
 
-local search = "/plumber/plumbing/?.lua"
+local pipelinesearch = "/plumber/pipelines/?.lua;/pipelines/?.lua"
+local partsearch = "/plumber/plumbing/?.lua;/plumbing/?.lua"
+local libsearch = "/plumber/libraries/?.lua;/libraries/?.lua"
 
 function _G.loadfile(file, mode, env)
   local data, err = readFile(file)
@@ -142,9 +144,28 @@ function _G.loadfile(file, mode, env)
   return load(data, "="..file, mode, env)
 end
 
+local libcache = {}
+
+function plumber.loadLibrary(name)
+  if libcache[name] then return libcache[name] end
+  for dir in libsearch:gmatch("[^;]+") do
+    local try = dir:gsub("%?", name)
+    if fs.exists(try) then
+      local func, err = loadfile(try)
+      if not func then
+        error(err, 0)
+      end
+      local lib = func()
+      libcache[name] = lib
+      return lib
+    end
+  end
+  error("library " .. name .. " not found",0)
+end
+
 local function loadStage(name, args, input, output)
   local stage = {}
-  for dir in search:gmatch("[^;]+") do
+  for dir in partsearch:gmatch("[^;]+") do
     local try = dir:gsub("%?", name)
     if fs.exists(try) then
       local func, err = loadfile(try)
@@ -224,7 +245,17 @@ function plumber.loadPipeline(name, varargs)
   local stages = {}
   local aux_pipes = {}
 
-  local data, err = readFile("/plumber/pipelines/"..name..".pipeline")
+  local path
+  for dir in pipelinesearch:gmatch("[^;]+") do
+    local try = dir:gsub("%?", name)
+    if fs.exists(try) then
+      path = try
+    end
+  end
+  if not path then
+    return nil, "pipeline not found"
+  end
+  local data, err = readFile(path)
   if not data then return nil, err end
 
   for line in data:gmatch("[^\n]+") do
