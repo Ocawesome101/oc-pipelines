@@ -69,10 +69,11 @@ while checkActive() or working do
       if not result and err then
         if not softfail then error(err, 0) end
         working = nil
+        plumber.log(queue[1]..": failed")
         plumber.write({queue[1], "failed"})
       end
     until result or err
-    if loop then plumber.write({queue[1], working.response()}) end
+    if loop and working then plumber.write({queue[1], working.response()}) end
     table.remove(queue, 1)
   end
   if not loop and not working then break end
