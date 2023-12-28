@@ -132,7 +132,7 @@ local function readFile(f)
   return data
 end
 
-local pipelinesearch = "/plumber/pipelines/?.lua;/pipelines/?.lua"
+local pipelinesearch = "/plumber/pipelines/?.pipeline;/pipelines/?.pipeline"
 local partsearch = "/plumber/plumbing/?.lua;/plumbing/?.lua"
 local libsearch = "/plumber/libraries/?.lua;/libraries/?.lua"
 
