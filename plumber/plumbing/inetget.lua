@@ -7,7 +7,7 @@
 
 local url, softfail = ...
 softfail = softfail == "softfail"
-if url == "softfail" then softfail = true url = softfail end
+if url == "softfail" then url = softfail softfail = true end
 local loop = not url
 
 local function checkActive()
