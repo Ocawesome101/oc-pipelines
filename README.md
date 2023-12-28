@@ -7,7 +7,7 @@ Each pipeline has one or more *pipes*.  A pipeline can be thought of as analogou
 The general format for each line of a `.pipeline` file is as follows: `type: name(arguments) input(extraInputName) output(extraOutputName)`.
 
   - `type` may be any value and it is recommended to be left blank.  As a special case, if `type` is `#` (comment), the entire line is ignored.
-  - `name` specifies the name of the pipeline component.  e.g. `foo` tells the system to use `/plumber/plumbing/foo.lua` as that component.
+  - `name` specifies the name of the pipeline component.  e.g. `foo` tells the system to use `/plumbing/foo.lua` or `/plumber/plumbing/foo.lua` as that component.
   - `(arguments)` is an optional comma-separated list of arguments.  This can contain arbitrary varargs to the whole pipeline, like:
     * `v[n]` to use the `n`th vararg
     * `...` to use every vararg
@@ -40,10 +40,20 @@ We may also look at the `cat` pipeline:
 Takes one argument, a path, and outputs a listing of all files from that path.
 
 #### `dummy`
-Echoes its first input connection to any output connections.
+Echoes any arguments to any output connections, then echoes data from its first input connection, if present, to any output connections.
+
+#### `edit`
+A very basic and very minimal text editor.  Think `ed`.  Commands are taken through a `control` input and file data is taken through a `data` input.  Outputs some information to a `screen` output and some other information to every output.
 
 #### `file`
 Like `dir`, but outputs the contents of a file.
+
+#### `ghapi`
+Some basic interfaces with the GitHub API:
+  - `ghapi(request)` gives the URL of a request.  Pass this to `inetget`.
+  - `ghapi(request,parse)` parses the result of an API request.  Currently supports `urls` togive a list of URLS from a `repos/git/trees` request.
+
+See the included `update` pipeline for some sample usage.
 
 #### `inetget`
 Has two modes of operation:
@@ -51,7 +61,10 @@ Has two modes of operation:
 2) Reads data from one single URL, provided as an argument; the output of this mode has no additional metadata and is only the resulting text content.
 
 #### `lines`
-Splits each input message it receives into individual lines, and outputs the result.
+Splits each input message it receives into individual lines, and outputs the result.  If given `buffer`, will merge multiple messages together where necessary.
+
+#### `match`
+Applies `string.match` to each input message it receives.  Arguments are an optional `datatype` filter and a pattern.  The `datatype` filter is used to filter by data type - `string` or `table[index]`.
 
 #### `readline`
 Reads text input from the user.  Requires a `screen` connection as shown in the `shell` pipeline above.
@@ -62,8 +75,13 @@ Manages text output on a screen.  Multiple concurrent instances should behave co
 #### `shell`
 A minimal shell.  Processes each input message as a shell command.  See the output of the `help` command for details.
 
-#### `edit`
-A very basic and very minimal text editor.  Think `ed`.  Commands are taken through a `control` input and file data is taken through a `data` input.  Outputs some information to a `screen` output and some other information to every output.
+#### `updatechecker`
+Takes a base directory as an argument, reads `update.cfg`, and the output of a `repos.branches` request from `ghapi`, and if a newer commit is available than the one specified in the `update.cfg` it will output the repository name and branch for use with `ghapi`.
+
+See the included `update.pipeline` for intended use.
+
+#### `writer`
+Takes a base directory as an argument, and reads file data.  Interprets any tables present in the datastream as having their first field be a file path.  e.g. if it receives `{"/foo.txt"}` it will switch to `base/foo.txt`.
 
 ## Plumber API
 
@@ -75,6 +93,9 @@ Returns the GPU used for text output on boot.  May be a string or `nil` if a GPU
 #### `setGraphicsOutput(string|table)`
 Set the GPU used for text output.  Provided argument must be either a full component address or a proxy.
 
+#### `log(message)`
+Logs a message to the current log output.
+
 #### `setLogOutput(function)`
 Sets a function to be called when the system needs to log an event.  Its argument should be a single string.
 
@@ -82,7 +103,7 @@ Sets a function to be called when the system needs to log an event.  Its argumen
 Loads a library from `/libraries` or `/plumber/libraries`.
 
 #### `loadPipeline(string[, string]): table`
-Loads a given pipeline from `/plumber/pipelines`.  Takes a pipeline name and optionally a comma-separated list of varargs.
+Loads a given pipeline from `/pipelines` or `/plumber/pipelines`.  Takes a pipeline name and optionally a comma-separated list of varargs.
 
 #### `startPipeline(string[, string]): number`
 Loads the given pipeline, adds it to the scheduler queue, and returns its ID.

@@ -1,7 +1,7 @@
 #: interactive editor pipeline definition
 #: read file and convert to lines
 : file(...,optional) output(lines)
-: lines input(lines) output(editor-data)
+: lines(buffer) input(lines) output(editor-data)
 #: readline
 : readline output(editor-control) output(screen)
 #: the editor, in interactive mode
