@@ -27,17 +27,23 @@ local rqp = "([^%.]+)%.(.+)"
 local rpp = "([^/]+/[^/]+)(/?[^/]*)"
 
 if parse then
-  local urqp = "https://api.github.com/([^/]+)/([^/]+/[^/]+)/(.+[^/])/?(.*)"
+  local urqp = "https://api.github.com/([^/]+)/([^/]+/[^/]+)/(.+)"
   local header = data[1]
   local category, repo, name, branch = header[1]:match(urqp)
 
-  local rdata = table.concat(data, "", 2, #data - 2)
+  if name:find('/') then
+    name, branch = name:match("(.*)/([^/]+)")
+  end
+
+  local rdata = table.concat(data, "", 2, #data - 1)
   local json = plumber.loadLibrary("json")
   local result = json.decode(rdata)
 
+  plumber.log(request..":"..name)
+
   if request == "urls" then
     if name == "git/trees" then
-      for _, v in pairs(repodata.tree) do
+      for _, v in pairs(result.tree) do
         if v.type == "blob" then
           plumber.write(("https://raw.githubusercontent.com/%s/%s/%s")
             :format(repo, branch, v.path))
