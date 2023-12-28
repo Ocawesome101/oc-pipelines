@@ -12,12 +12,16 @@ if request == "parse" then request = parse parse = true end
 
 repeat
   local inputs = plumber.waitInputs()
-  for i=1, #inputs do
-    data[#data+1] = plumber.pollInput(inputs[i])
+  if inputs then
+    for i=1, #inputs do
+      data[#data+1] = plumber.pollInput(inputs[i])
+    end
   end
 until (not inputs)
     or (parse and data[#data][1] == "done")
     or (#inputs == 0 and not parse)
+
+if #data == 0 then return end
 
 local rqp = "([^%.]+)%.(.+)"
 local rpp = "([^/]+)/([^/]+)(/?[^/]*)"

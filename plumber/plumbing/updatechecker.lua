@@ -11,7 +11,7 @@ local handle, err = fs.open((base or "/plumber").."/update.cfg")
 if not handle then
   error("no update configuration defined - /plumber/update.cfg", 0)
 end
-local data = handle:read(math.huge)
+local data = handle:read(math.huge) or ""
 handle:close()
 
 for line in data:gmatch("[^\n]+") do
@@ -29,13 +29,15 @@ local function checkActive()
   end
 end
 
-local jsonData
+local jsonData = ""
 while checkActive() do
   local input = plumber.waitInput(1)
   if type(input) == "string" then
-    jsonData = jsonData .. (input)
+    jsonData = jsonData .. input
   end
 end
+
+if #jsonData == 0 then return end
 
 local json = plumber.loadLibrary("json")
 
@@ -49,6 +51,6 @@ for i=1, #data do
   end
 end
 
-if not carry_on then break end
+if not carry_on then return end
 
 plumber.write(updateConfig.repo.."/"..updateConfig.branch)

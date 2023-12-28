@@ -33,4 +33,4 @@ while checkActive() do
   end
 end
 
-handle:close()
+if handle then handle:close() end
