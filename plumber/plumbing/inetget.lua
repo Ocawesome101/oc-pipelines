@@ -6,8 +6,12 @@
 -- Interjects data as tables if in loop mode.
 
 local url, softfail = ...
-softfail = softfail == "softfail"
-if url == "softfail" then url = softfail softfail = true end
+if url == "softfail" then
+  url = softfail
+  softfail = true
+else
+  softfail = softfail == "softfail"
+end
 local loop = not url
 
 local function checkActive()
