@@ -2,10 +2,12 @@
 -- args: none
 -- inputs: data
 -- outputs: data
--- Check for updates
+-- Check for updates based on git commit
+
+local base = (...) or "/plumber"
 
 local updateConfig = {}
-local handle, err = fs.open("/plumber/update.cfg")
+local handle, err = fs.open((base or "/plumber").."/update.cfg")
 if not handle then
   error("no update configuration defined - /plumber/update.cfg", 0)
 end
@@ -49,4 +51,4 @@ end
 
 if not carry_on then break end
 
-plumber.write("ocawesome101/oc-pipelines/"..updateConfig.branch)
+plumber.write(updateConfig.repo.."/"..updateConfig.branch)

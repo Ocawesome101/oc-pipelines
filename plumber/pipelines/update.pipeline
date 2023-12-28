@@ -2,7 +2,7 @@
 : dummy(ocawesome101/oc-pipelines) output(dummy-data)
 : gitapi(repos.branches) input(dummy-data) output(inet-urls)
 : inetget input(inet-urls) output(branch-data)
-: updatechecker input(branch-data) output(reponame-data)
+: updatechecker(/plumber) input(branch-data) output(reponame-data)
 : gitapi(repos.git.trees) input(reponame-data) output(request-data)
 : inetget(softfail) input(request-data) output(response-data)
 : gitapi(urls,parse) input(response-data) output(update-urls)
