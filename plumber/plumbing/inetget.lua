@@ -45,8 +45,11 @@ while checkActive() or working do
     if not url and #queue == 0 and not working then
       plumber.waitInputs()
     end
-    for _, input in pairs(plumber.pollInputs()) do
-      queue[#queue+1] = plumber.pollInput(input)
+    local inputs = plumber.pollInputs()
+    if inputs then
+      for _, input in pairs(inputs) do
+        queue[#queue+1] = plumber.pollInput(input)
+      end
     end
   end
   if working then
