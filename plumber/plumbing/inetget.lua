@@ -41,6 +41,7 @@ local queue = {url}
 local working
 
 while checkActive() or working do
+  coroutine.yield(0)
   if loop then
     if not url and #queue == 0 and not working then
       plumber.waitInputs()
@@ -54,8 +55,9 @@ while checkActive() or working do
   end
   if working then
     local data = working.read()
+    if data then plumber.getGraphicsOutput().set(1,1,data) end
     if not data then
-      if not loop then plumber.write({"done"}) end
+      if loop then plumber.write({"done"}) end
       working.close()
       working = nil
     elseif #data > 0 then
@@ -63,13 +65,15 @@ while checkActive() or working do
     end
   elseif #queue > 0 then
     working = inet.request(queue[1])
-    local result, err = pcall(working.finishConnect)
-    if not result and err then
-      if not softfail then error(err, 0) end
-      working = nil
-      plumber.write({queue[1], "failed"})
-    end
-    if not loop then plumber.write({queue[1], working.response()}) end
+    repeat
+      local result, err = working.finishConnect()
+      if not result and err then
+        if not softfail then error(err, 0) end
+        working = nil
+        plumber.write({queue[1], "failed"})
+      end
+    until result or err
+    if loop then plumber.write({queue[1], working.response()}) end
     table.remove(queue, 1)
   end
   if not loop and not working then break end

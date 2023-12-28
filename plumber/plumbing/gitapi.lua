@@ -24,7 +24,7 @@ until (not inputs)
 if #data == 0 then return end
 
 local rqp = "([^%.]+)%.(.+)"
-local rpp = "([^/]+)/([^/]+)(/?[^/]*)"
+local rpp = "([^/]+/[^/]+)(/?[^/]*)"
 
 if parse then
   local urqp = "https://api.github.com/([^/]+)/([^/]+/[^/]+)/(.+[^/])/?(.*)"
