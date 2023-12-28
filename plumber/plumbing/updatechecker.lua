@@ -17,6 +17,7 @@ for line in data:gmatch("[^\n]+") do
   if name and value then updateConfig[name] = value end
 end
 
+updateConfig.repo = updateConfig.repo or "ocawesome101/oc-pipelines"
 updateConfig.branch = updateConfig.branch or "foremost"
 updateConfig.commit = updateConfig.commit or "no"
 
@@ -48,4 +49,4 @@ end
 
 if not carry_on then break end
 
-plumber.write("https://api.github.com/repos/ocawesome101/recrafted/git/trees/"..updateConfig.branch.."?recursive=1")
+plumber.write("ocawesome101/oc-pipelines/"..updateConfig.branch)
