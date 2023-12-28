@@ -32,6 +32,7 @@ if parse then
   local category, repo, name, branch = header[1]:match(urqp)
 
   local rdata = table.concat(data, "", 2, #data - 2)
+  local json = plumber.loadLibrary("json")
   local result = json.decode(rdata)
 
   if request == "urls" then

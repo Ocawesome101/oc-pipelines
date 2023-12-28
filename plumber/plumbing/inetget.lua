@@ -15,7 +15,7 @@ end
 local loop = not url
 
 local function checkActive()
-  for i, input in pairs(plumber.getOutputs()) do
+  for i, input in pairs(plumber.getInputs()) do
     if input.active then return true end
   end
 end
@@ -55,7 +55,6 @@ while checkActive() or working do
   end
   if working then
     local data = working.read()
-    if data then plumber.getGraphicsOutput().set(1,1,data) end
     if not data then
       if loop then plumber.write({"done"}) end
       working.close()

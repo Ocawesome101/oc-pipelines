@@ -118,8 +118,10 @@ function plumber.setGraphicsOutput(gpu)
   end
 end
 
+plumber.log = log
 function plumber.setLogOutput(func)
   log = func
+  plumber.log = func
 end
 
 local global_state = {}
