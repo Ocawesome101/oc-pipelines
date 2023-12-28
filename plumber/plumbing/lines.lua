@@ -16,7 +16,7 @@ while true do
   local result = plumber.waitInput(1)
   if result then
     repeat
-      local nnl = result:find("\n")
+      local nnl = result:find("\n") or (not preserve and #result + 1)
       if nnl then
         local line = result:sub(1, nnl - 1)
         result = result:sub(nnl+1)
