@@ -39,7 +39,7 @@ if parse then
   local json = plumber.loadLibrary("json")
   local result = json.decode(rdata)
 
-  plumber.log(request..":"..name)
+  branch = branch:gsub("%?.*", "")
 
   if request == "urls" then
     if name == "git/trees" then
